@@ -1,0 +1,122 @@
+﻿// Cargar límites de provincias (ADM2) del mundo
+var provincias = ee.FeatureCollection("FAO/GAUL/2015/level2");
+ 
+// Filtrar solo España
+var espana = provincias.filter(ee.Filter.eq('ADM0_NAME', 'Spain'));
+ 
+// Mostrar la lista de nombres de provincias en la consola
+var nombresProvincias = espana.aggregate_array('ADM2_NAME');
+print('Provincias de España (ADM2_NAME):', nombresProvincias);
+ 
+//Descarga de datos
+ 
+// Cargar límites administrativos de segundo nivel (provincias) de GAUL
+var provincias = ee.FeatureCollection("FAO/GAUL/2015/level2");
+ 
+// Filtrar por nombre de provincia: "Vizcaya"
+var bizkaia = provincias.filter(ee.Filter.eq('ADM2_NAME', 'Bizkaia'));
+ 
+// Mostrar en consola para comprobar
+print('Bizkaia:', bizkaia);
+ 
+ 
+ 
+//Ahora los vectores de las cuencas
+var cuencas = ee.FeatureCollection('WWF/HydroATLAS/v1/Basins/level12');
+ 
+// Filtrar las cuencas que intersectan con Bizkaia
+var cuencasBizkaia = cuencas.filterBounds(bizkaia);
+ 
+// Visualizar en el visor
+Map.centerObject(bizkaia, 9);
+Map.addLayer(cuencasBizkaia, {color: 'blue'}, 'Cuencas Nivel 12');
+ 
+var cuencasBizkaiaSimplificado = cuencasBizkaia.select(['HYBAS_ID', 'NEXT_DOWN', 'SUB_AREA', 'UP_AREA']);
+// Opcional: Exportar las cuencas como shapefile
+Export.table.toDrive({
+  collection: cuencasBizkaiaSimplificado,
+  description: 'Cuencas_HydroBASINS_Bizkaia',
+  folder: 'GEE_Exports',
+  fileFormat: 'SHP'
+});
+ 
+// Cargar el CORINE Land Cover 1990
+var corine1990 = ee.Image("COPERNICUS/CORINE/V20/100m/1990");
+ 
+// Recortar la imagen al área de Bizkaia
+var corineBizkaia1990 = corine1990.clip(cuencasBizkaia);
+ 
+// Centrar el mapa en Bizkaia
+Map.centerObject(bizkaia, 9);
+ 
+// Visualizar
+Map.addLayer(corineBizkaia1990, {
+  min: 100,
+  max: 540,
+}, 'CORINE 1990 - Bizkaia');
+ 
+// Exportar a Google Drive
+Export.image.toDrive({
+  image: corineBizkaia1990,
+  description: 'CORINE1990_Bizkaia',
+  folder: 'GEE_Exports',
+  fileNamePrefix: 'corine1990_bizkaia',
+  region: bizkaia.geometry(),
+  scale: 100,
+  crs: 'EPSG:25830',
+  maxPixels: 1e13
+});
+ 
+// Cargar el CORINE Land Cover 1990
+var corine2018 = ee.Image("COPERNICUS/CORINE/V20/100m/2018");
+ 
+// Recortar la imagen al área de Bizkaia
+var corineBizkaia2018 = corine2018.clip(cuencasBizkaia);
+ 
+// Visualizar
+Map.addLayer(corineBizkaia2018, {
+  min: 100,
+  max: 540,
+}, 'CORINE 2018 - Bizkaia');
+ 
+// Exportar a Google Drive
+Export.image.toDrive({
+  image: corineBizkaia2018,
+  description: 'CORINE2018_Bizkaia',
+  folder: 'GEE_Exports',
+  fileNamePrefix: 'corine2018_bizkaia',
+  region: bizkaia.geometry(),
+  scale: 100,
+  crs: 'EPSG:25830',
+  maxPixels: 1e13
+});
+ 
+var bizkaia_geom = ee.Feature(cuencasBizkaia.geometry());
+// Cargar el modelo digital de elevación SRTM 30 m
+var srtm = ee.Image('USGS/SRTMGL1_003');
+ 
+// Aplicar máscara para evitar zonas sin datos (valores nulos)
+var srtm_masked = srtm.updateMask(srtm.neq(-32768));
+ 
+// Recortar el DEM a Bizkaia
+var srtmBizkaia = srtm_masked.clip(bizkaia_geom);
+ 
+// Visualizar en el visor
+Map.centerObject(bizkaia, 9);
+Map.addLayer(srtmBizkaia, {
+  min: 0,
+  max: 1500,
+  palette: ['blue', 'green', 'yellow', 'orange', 'red', 'brown']
+}, 'SRTM 30m - Bizkaia');
+ 
+// Exportar a Google Drive
+Export.image.toDrive({
+  image: srtmBizkaia,
+  description: 'SRTM30_Bizkaia',
+  folder: 'GEE_Exports',
+  fileNamePrefix: 'srtm30_bizkaia',
+  region: bizkaia.geometry(),
+  scale: 100,
+  crs: 'EPSG:25830',
+  maxPixels: 1e13
+});
